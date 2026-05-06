@@ -1,31 +1,40 @@
-# Built things
-_Debug/
-Compiled/
+# Node / npm
+node_modules/
+npm-debug.log*
 
-# AudioCache can be rebuilt from sources
-AudioCache/
+# Build output
+dist/
+release/
 
-# Lockfile
-_OpenInEditor.lock
+# TypeScript build info
+*.tsbuildinfo
 
-# User settings
-Game.agf.user
-*.crm.user
+# Prisma generated client
+node_modules/.prisma/
 
-# Backups
-Game.agf.bak
-backup_acsprset.spr
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
-# Memory dumps
-*.dmp
+# ROM and save files (user data, not committed)
+roms/*
+!roms/.gitkeep
+saves/*
+!saves/.gitkeep
 
-# Temporary files
-# temporarily created during sprite or room background compression
-~aclzw.tmp
-# temporary, main game data, before getting packed into exe
-game28.dta
-# temporary build of the game before being moved to Compiled/ folder
-*.exe
+# Electron builder cache
+.electron-builder-cache/
 
-# Log files
-warnings.log
+# Environment
+.env
+.env.local
+
+# Editor directories
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

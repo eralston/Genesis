@@ -1,0 +1,23 @@
+.stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.active {
+  color: var(--star-active);
+  font-size: 1.1rem;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s;
+}
+
+.active:hover {
+  transform: scale(1.2);
+}
+
+.inactive {
+  color: var(--star-inactive);
+  font-size: 1.1rem;
+  cursor: pointer;
+  user-select: none;
+}

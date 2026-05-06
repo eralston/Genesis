@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Game {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String?
+  releaseYear Int?
+  genre       String?
+  coverArtUrl String?
+  status      String      @default("wishlist")
+  rating      Int?
+  notes       String?
+  roms        Rom[]
+  saveStates  SaveState[]
+}
+
+model Rom {
+  id           Int    @id @default(autoincrement())
+  filename     String
+  absolutePath String
+  fileSize     Int
+  sha256Hash   String
+  gameId       Int
+  game         Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model SaveState {
+  id        Int      @id @default(autoincrement())
+  slot      Int
+  filePath  String
+  createdAt DateTime @default(now())
+  gameId    Int
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, slot])
+}
