@@ -1,91 +1,97 @@
 # Genesis
 
-A single-user local web app for managing and playing your Sega Genesis game collection.
+A local Electron app for managing and playing your Sega Genesis game collection. Written in TypeScript throughout, with JavaScript compatibility where required (e.g. EmulatorJS).
 
 ## Features
 
 - **Game Library** — Browse your collection in a cover-art grid. Track owned vs. wishlist status, write personal notes, and assign ratings.
-- **ROM Manager** — Upload `.md`, `.bin`, `.gen`, and `.smd` ROM files and associate them with library entries.
-- **In-Browser Emulator** — Play games directly in the browser via EmulatorJS (WASM-based Genesis core). Save states are persisted on the backend.
-- **Metadata Lookup** — Auto-populate game info (title, description, cover art, release date) from the IGDB API, with full manual override.
+- **ROM Manager** — Import `.md`, `.bin`, `.gen`, and `.smd` ROM files. Binaries are stored on the filesystem; the database serves as a searchable index with manually-populated metadata.
+- **In-App Emulator** — Play games directly in the Electron renderer via EmulatorJS (WASM-based Genesis core). Save states are persisted to disk via the main process.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18 + Vite |
-| Backend | Node.js + Fastify |
-| Database | SQLite via Prisma ORM |
+| App shell | Electron |
+| Language | TypeScript (strict), JS where required |
+| Renderer | React 18 + Vite |
+| Main ↔ Renderer | Electron IPC (contextBridge, typed channels) |
+| Database | SQLite via Prisma ORM (main process only) |
 | Emulator | EmulatorJS |
-| Game Metadata | IGDB API (free, requires Twitch dev account) |
+| Build / packaging | electron-builder |
 
 ## Project Structure
 
 ```
 genesis/
-├── client/          # React frontend (Vite)
-│   └── src/
+├── src/
+│   ├── main/            # Electron main process (TypeScript)
+│   │   ├── ipc/         # IPC handlers: games, roms, saves
+│   │   ├── db/          # Prisma schema + migrations
+│   │   └── lib/         # File system helpers, ROM validation
+│   └── renderer/        # React + Vite renderer (TypeScript)
 │       ├── components/
 │       ├── pages/       # Library, ROMManager, Player, GameDetail
 │       └── hooks/
-├── server/          # Node.js + Fastify backend
-│   ├── routes/      # games, roms, saves, igdb-proxy
-│   ├── db/          # Prisma schema + migrations
-│   └── lib/         # file handling, IGDB client
-├── roms/            # ROM file storage (gitignored)
-├── saves/           # Save state storage (gitignored)
+├── roms/                # ROM file storage (gitignored)
+├── saves/               # Save state storage (gitignored)
+├── electron-builder.yml
 └── README.md
 ```
 
 ## Data Model
 
 - **Game** — title, description, releaseYear, genre, coverArtUrl, status (`owned` | `wishlist`), rating, notes
-- **Rom** — filename, filepath, fileSize, sha256Hash, gameId (FK)
-- **SaveState** — slot, data (blob), createdAt, gameId (FK)
+- **Rom** — filename, absolutePath, fileSize, sha256Hash, gameId (FK)
+- **SaveState** — slot, filePath, createdAt, gameId (FK)
 
-## API Routes (Fastify)
+## IPC Channels
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/games` | List all games |
-| POST | `/api/games` | Add a game |
-| PUT | `/api/games/:id` | Update game metadata/notes/rating |
-| DELETE | `/api/games/:id` | Remove a game |
-| POST | `/api/roms/upload` | Upload a ROM file (multipart) |
-| GET | `/api/roms/:id/file` | Stream ROM to emulator |
-| GET | `/api/igdb/search?q=` | Proxy search to IGDB |
-| GET/POST | `/api/saves/:gameId` | Fetch or write save states |
+All IPC is exposed via a typed `preload.ts` using `contextBridge`. The renderer never accesses Node APIs directly.
+
+| Channel | Direction | Description |
+|---------|-----------|-------------|
+| `games:list` | renderer → main | Fetch all games from DB |
+| `games:upsert` | renderer → main | Create or update a game record |
+| `games:delete` | renderer → main | Remove a game and its ROM index entries |
+| `roms:import` | renderer → main | Copy ROM file to `roms/`, validate, index in DB |
+| `roms:read` | renderer → main | Read ROM binary into buffer for EmulatorJS |
+| `saves:read` | renderer → main | Load save state file |
+| `saves:write` | renderer → main | Persist save state to disk |
 
 ## Security Notes
 
-- ROM files are served through the backend (not as static assets) to prevent direct path traversal.
-- File uploads are validated by extension whitelist and MIME type before storage.
-- IGDB API credentials are stored in `.env` and never exposed to the client (proxied through the backend).
+- The renderer runs with `nodeIntegration: false` and `contextIsolation: true`; all filesystem and DB access is gated through typed IPC handlers in the main process.
+- ROM imports are validated by file extension whitelist and magic bytes before being copied to the managed `roms/` directory.
+- No network requests in the initial scope — no credentials or API keys required.
 
 ## Getting Started (planned)
 
 ```bash
 # Install dependencies
-npm install --workspaces
-
-# Set up environment
-cp server/.env.example server/.env
-# → Add TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET from dev.twitch.tv
+npm install
 
 # Run database migrations
-npx prisma migrate dev --schema server/db/schema.prisma
+npx prisma migrate dev --schema src/main/db/schema.prisma
 
-# Start dev servers
+# Start in development mode (Vite + Electron)
 npm run dev
+
+# Package for distribution
+npm run build
 ```
 
 ## Roadmap
 
-- [ ] Project scaffold (Vite + Fastify monorepo, Prisma setup)
-- [ ] Game library CRUD + IGDB metadata lookup
-- [ ] ROM upload, validation, and file management
-- [ ] EmulatorJS integration + in-browser play
-- [ ] Save state persistence
-- [ ] Cover art display + library grid UI
+- [ ] Project scaffold (Electron + Vite + React + TypeScript, Prisma setup)
+- [ ] Game library CRUD with manual metadata entry
+- [ ] ROM import, validation (magic bytes), and filesystem management
+- [ ] EmulatorJS integration + in-app play
+- [ ] Save state persistence (read/write via IPC)
+- [ ] Cover art display (local image file) + library grid UI
 - [ ] Wishlist / owned toggle + rating / notes UI
+
+## Future Scope
+
+- **IGDB metadata lookup** — Auto-populate game info (title, description, cover art, release date) from the IGDB API (requires free Twitch developer account), with manual override. Deferred until the core library and emulator are stable.
 
