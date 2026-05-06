@@ -1,0 +1,17 @@
+appId: com.genesis.app
+productName: Genesis
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - node_modules/**/*
+  - "!node_modules/.cache"
+extraResources: []
+asar: true
+mac:
+  target: dmg
+win:
+  target: nsis
+linux:
+  target: AppImage
